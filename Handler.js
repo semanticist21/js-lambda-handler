@@ -25,35 +25,42 @@ exports.handler = async (event, context) => {
   };
 
   try {
-    switch (event.httpMethod) {
+    switch (event.requestContext.http.method) {
       case methodType.get:
         body = await dynamo
           .scan({ TableName: event.queryStringParameters.TableName })
           .promise();
-        return { statusCode, body, headers };
+        break;
       case methodType.post:
-        console.log(event.JSON);
-        body = await dynamo.put(JSON.parse(event.body)).promise();
-        return { statusCode, body, headers };
+        // DataPkg :: UserId, UserNm, Token, JsonData
+        // pv :: Id, GenkW, Hz, Temp, ModuleTemp, Time
+
+        // user table :: UserId,
+        const jsonBody = JSON.parse(event.body);
+
+        var userObj = new Object();
+        var pvObj = new Object();
+        var dtaObj = new Object();
+
+        break;
+      // body = await dynamo.put(JSON.parse(event.body)).promise();
       case methodType.delete || methodType.put:
         statusCode = responseCode.notAllowedmethod;
-        body = getUnsupMsg(event.httpMethod);
-        return { statusCode, body, headers };
+        body = JSON.stringify(`Unsupported method : ${event.httpMethod}`);
+        break;
       default:
-        statusCode = responseCode.notAllowedmethod;
-        body = getUnsupMsg(event.httpMethod);
-        return { statusCode, body, headers };
+        statusCode = responseCode.bad;
+        body = JSON.stringify(
+          `Unknown Method? ${event.requestContext.http.method}`
+        );
+        break;
     }
   } catch (err) {
     statusCode = responseCode.bad;
     body = err.message;
-    return { statusCode, body, headers };
   } finally {
     statusCode = responseCode.ok;
     body = JSON.stringify(body);
     return { statusCode, body, headers };
   }
 };
-
-const getUnsupMsg = (methodNm) =>
-  JSON.stringify(`Unsupported method : ${methodNm}`);
