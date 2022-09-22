@@ -24,6 +24,8 @@ exports.handler = async (event, context) => {
     "Content-Type": "application/json",
   };
 
+  console.log("Requested received.");
+
   try {
     switch (event.requestContext.http.method) {
       case methodType.get:
@@ -33,14 +35,51 @@ exports.handler = async (event, context) => {
         break;
       case methodType.post:
         // DataPkg :: UserId, UserNm, Token, JsonData
-        // pv :: Id, GenkW, Hz, Temp, ModuleTemp, Time
+        // pv(JsonData) :: PvId, GenKw, Hz, Temp, ModuleTemp, Time
 
-        // user table :: UserId,
+        // User table :: UserId, UserNm
+        // Pv table :: UserId, PvId
+        // PvData table :: PvId, GenKw, Hz, Temp, ModuleTemp, Time
+
         const jsonBody = JSON.parse(event.body);
+
+        var userDbObj = new Object();
+        var pvDbObj = new Object();
+        var dataDbObj = new Object();
 
         var userObj = new Object();
         var pvObj = new Object();
-        var dtaObj = new Object();
+        var dataObj = new Object();
+
+        const userId = event.pathParameters.id;
+
+        userObj.Id = userId;
+        userObj.Name = jsonBody.UserNm;
+
+        const jsonPvData = JSON.parse(JSON.stringify(jsonBody.JsonData));
+
+        pvObj.UserId = userId;
+        pvObj.PvId = jsonPvData.Id;
+
+        dataObj.PvId = jsonPvData.PvId;
+        dataObj.Genkw = jsonPvData.GenKw;
+        dataObj.Hz = jsonPvData.Hz;
+        dataObj.Temp = jsonPvData.Temp;
+        dataObj.ModuleTemp = jsonPvData.ModuleTemp;
+        dataObj.Time = jsonPvData.Time;
+
+        userDbObj.TableName = "User";
+        userDbObj.Item = userObj;
+
+        pvDbObj.TableName = "Pv";
+        pvDbObj.Item = pvObj;
+
+        dataDbObj.TableName = "PvData";
+        dataDbObj.Item = dataObj;
+
+        await dynamo.put(userDbObj).promise();
+        await dynamo.put(pvDbObj).promise();
+        await dynamo.put(dataDbObj).promise();
 
         break;
       // body = await dynamo.put(JSON.parse(event.body)).promise();
@@ -58,6 +97,7 @@ exports.handler = async (event, context) => {
   } catch (err) {
     statusCode = responseCode.bad;
     body = err.message;
+    console.log(err.message);
   } finally {
     statusCode = responseCode.ok;
     body = JSON.stringify(body);
