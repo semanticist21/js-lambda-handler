@@ -23,7 +23,7 @@ exports.handler = async (event, context) => {
   const headers = {
     "Content-Type": "application/json",
   };
-
+  
   console.log("Requested received.");
 
   try {
@@ -32,66 +32,42 @@ exports.handler = async (event, context) => {
         body = await dynamo
           .scan({ TableName: event.queryStringParameters.TableName })
           .promise();
-        break;
+          break;
       case methodType.post:
-        // DataPkg :: UserId, UserNm, Token, JsonData
         // pv(JsonData) :: PvId, GenKw, Hz, Temp, ModuleTemp, Time
-
-        // User table :: UserId, UserNm
-        // Pv table :: UserId, PvId
-        // PvData table :: PvId, GenKw, Hz, Temp, ModuleTemp, Time
-
+        const token = event.queryStringParameters.token
+        if(token == undefined || token != "test") {
+          console.log("auth token is not correct");
+          throw new Error();
+        }
+        
         const jsonBody = JSON.parse(event.body);
-
-        var userDbObj = new Object();
-        var pvDbObj = new Object();
-        var dataDbObj = new Object();
-
-        var userObj = new Object();
-        var pvObj = new Object();
-        var dataObj = new Object();
-
-        const userId = event.pathParameters.id;
-
-        userObj.Id = userId;
-        userObj.Name = jsonBody.UserNm;
-
-        const jsonPvData = JSON.parse(JSON.stringify(jsonBody.JsonData));
-
-        pvObj.UserId = userId;
-        pvObj.PvId = jsonPvData.Id;
-
-        dataObj.PvId = jsonPvData.PvId;
-        dataObj.Genkw = jsonPvData.GenKw;
-        dataObj.Hz = jsonPvData.Hz;
-        dataObj.Temp = jsonPvData.Temp;
-        dataObj.ModuleTemp = jsonPvData.ModuleTemp;
-        dataObj.Time = jsonPvData.Time;
-
-        userDbObj.TableName = "User";
-        userDbObj.Item = userObj;
-
-        pvDbObj.TableName = "Pv";
-        pvDbObj.Item = pvObj;
-
-        dataDbObj.TableName = "PvData";
-        dataDbObj.Item = dataObj;
-
-        await dynamo.put(userDbObj).promise();
-        await dynamo.put(pvDbObj).promise();
-        await dynamo.put(dataDbObj).promise();
-
+        
+        var dbObj = new Object();
+        var item = new Object();
+        
+        item.PvId = jsonBody.PvId;
+        item.Date = jsonBody.Date;
+        item.GenkW = jsonBody.GenKw;
+        item.Hz = jsonBody.Hz;
+        item.Temp  = jsonBody.Temp ;
+        item.ModuleTemp = jsonBody.ModuleTemp;
+        
+        dbObj.TableName = "PvData";
+        dbObj.Item = item;
+        
+        await dynamo.put(dbObj).promise()
+        
         break;
-      // body = await dynamo.put(JSON.parse(event.body)).promise();
+        
+        // body = await dynamo.put(JSON.parse(event.body)).promise();
       case methodType.delete || methodType.put:
         statusCode = responseCode.notAllowedmethod;
         body = JSON.stringify(`Unsupported method : ${event.httpMethod}`);
         break;
       default:
         statusCode = responseCode.bad;
-        body = JSON.stringify(
-          `Unknown Method? ${event.requestContext.http.method}`
-        );
+        body = JSON.stringify(`Unknown Method? ${event.requestContext.http.method}`);
         break;
     }
   } catch (err) {
